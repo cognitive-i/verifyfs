@@ -1,0 +1,50 @@
+#!/bin/bash
+
+set -eu
+
+################################################################
+# command line processing
+
+function usage
+{
+    SCRIPT_NAME=`basename $1`
+    cat <<EOF
+${SCRIPT_NAME} untrusted_directory out_manifest_file
+
+    Creates a SHA-256 of the untrusted_directory tree to the out_manifest_file
+
+Example:
+    ${SCRIPT_NAME} source manifest
+
+EOF
+    
+    if [[ $# -eq 2 ]]; then
+	echo Error: $2
+    fi
+
+}
+
+if [[ $# -ne 2 ]]; then
+    usage $0
+    exit 1
+fi
+
+if [[ ! -d "$1" ]]; then 
+    usage $0 "untrusted_directory not found"
+    exit 2
+fi
+
+if [[ -z "$2" ]]; then
+    usage $0 "out_manifest not specified"
+    exit 3
+fi
+
+################################################################
+# do some work
+
+SOURCE=$1
+MANIFEST=$2
+
+# nested shell used to work around MacOS lack of realpath/readlink -f that 
+# function like Linux variants
+(cd "${SOURCE}"; find * -type f -print0 | xargs -0 shasum -a256) > "${MANIFEST}"
