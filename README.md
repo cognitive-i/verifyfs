@@ -11,8 +11,12 @@ Installation
 ============
 The project uses CMake and pkg-config for locating Fuse and OpenSSL.
 
-MacOS
+**MacOS**
 port install osxfuse openssl
+
+**Debian/Ubuntu/Xubuntu**
+apt-get install libfuse-dev libssl-dev
+
 
 Usage
 =====

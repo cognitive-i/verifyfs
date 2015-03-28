@@ -37,6 +37,8 @@
 #include <iostream>
 #include <algorithm>
 #include <openssl/sha.h>
+#include <string.h>
+#include <stdio.h>
 
 using namespace std;
 
@@ -127,7 +129,7 @@ int VerifyFS::fuseRead(const char* path, char* buf, size_t size, off_t offset, s
         vector<uint8_t>& fileData = f->second;
         if(offset < fileData.size())
         {
-            size_t bytesRead = min(fileData.size() - offset, (unsigned long long) size);
+            size_t bytesRead = min(fileData.size() - offset, (size_t) size);
             memcpy(buf, fileData.data()+offset, bytesRead);
             result = bytesRead;
         }
