@@ -129,7 +129,7 @@ int VerifyFS::fuseRead(const char* path, char* buf, size_t size, off_t offset, s
         vector<uint8_t>& fileData = f->second;
         if(offset < fileData.size())
         {
-            size_t bytesRead = min(fileData.size() - offset, (size_t) size);
+            size_t bytesRead = min((size_t)(fileData.size() - offset), (size_t) size);
             memcpy(buf, fileData.data()+offset, bytesRead);
             result = bytesRead;
         }
