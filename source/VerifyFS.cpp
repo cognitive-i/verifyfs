@@ -36,15 +36,14 @@
 #include <unistd.h>
 #include <iostream>
 #include <algorithm>
-#include <openssl/sha.h>
 #include <string.h>
 #include <stdio.h>
 
 using namespace std;
 
-VerifyFS::VerifyFS(const string& untrustedPath, const std::map<std::string, std::string> fileHashes) :
+VerifyFS::VerifyFS(const string& untrustedPath, const IFileVerifier& fileVerifier) :
     mUntrustedPath(untrustedPath),
-    mTrustedFileHashes(fileHashes)
+    mFileVerifier(fileVerifier)
 {
     // initialiser list only
 }
@@ -111,12 +110,10 @@ int VerifyFS::fuseOpen(const char* path, struct fuse_file_info* fi)
     if(O_RDONLY != accessMode)
         return -EACCES;
 
-    auto f = mTrustedFileHashes.find(relativePath);
-    if(mTrustedFileHashes.end() == f)
+    if(! mFileVerifier.isValidFilePath(relativePath))
         return -EACCES;
 
-    string fullpath = mUntrustedPath + '/' + relativePath;
-    return openAndVerify(fullpath, f->second);
+    return openAndVerify(relativePath);
 }
 
 int VerifyFS::fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi)
@@ -145,33 +142,12 @@ int VerifyFS::fuseRelease(const char* path, struct fuse_file_info* fi)
     return 0;
 }
 
-
-namespace {
-
-bool verifyDigest(const vector<uint8_t>& buffer, const string& expectedDigest)
+int VerifyFS::openAndVerify(const string& path)
 {
-    uint8_t digest[SHA256_DIGEST_LENGTH];
-    SHA256(buffer.data(), buffer.size(), digest);
+    string fullpath = mUntrustedPath + '/' + path;
 
-
-    string digestHex;
-    int i;
-    for(i = 0; i < SHA256_DIGEST_LENGTH; i++)
-    {
-        char byteBuffer[3];
-        sprintf(byteBuffer, "%02x", digest[i]);
-        digestHex += byteBuffer;
-    }
-
-    return (digestHex == expectedDigest);
-}
-
-}
-
-int VerifyFS::openAndVerify(const string& path, const string& expectedDigest)
-{
     int result = -ENOENT;
-    int fh = open(path.c_str(), O_RDONLY);
+    int fh = open(fullpath.c_str(), O_RDONLY);
     if(-1 != fh)
     {
         struct stat details;
@@ -185,14 +161,14 @@ int VerifyFS::openAndVerify(const string& path, const string& expectedDigest)
 
         if(bytesRead == details.st_size)
         {
-            bool isGood = verifyDigest(buffer, expectedDigest);
+            bool isGood = mFileVerifier.isValidFileBlob(path, buffer.data(), buffer.size());
             if(isGood)
             {
-                mTrustedFiles[path] = buffer;
+                mTrustedFiles[fullpath] = buffer;
                 result = 0;
             }
             else
-                cerr << "Failed validation:  " << path << endl;
+                cerr << "Failed validation:  " << fullpath << endl;
 
         }
     }

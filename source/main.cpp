@@ -34,6 +34,7 @@
 #include <sstream>
 
 #include "VerifyFS.h"
+#include "FileVerifier.h"
 #include "FuseFSGlue.h"
 
 using namespace std;
@@ -62,27 +63,6 @@ int verifyFSAdditionalArgs(void* data, const char* arg, int key, struct fuse_arg
         return 1;
 }
 
-map<string, string> parseFileHashes(const string& fileHashesPath)
-{
-    // filenames are expected to be normalised within the folder
-    // so no leading ./ or absolute path prefixes.
-    map<string, string> result;
-
-    ifstream input(fileHashesPath);
-    if(input.is_open())
-    {
-        string line;
-        while(getline(input, line))
-        {
-            const string hash = line.substr(0, 64);
-            const string filename = line.substr(66);
-            result[filename] = hash;
-        }
-    }
-
-    return result;
-}
-
 int main(int argc, char* argv[])
 {
     // VerifyFS <sourcefolder> <hashesfile> <mountpoint>
@@ -91,8 +71,8 @@ int main(int argc, char* argv[])
     fuse_opt_parse(&args, &sourceAndHash, NULL, verifyFSAdditionalArgs);
 
     // create fuse filesystem
-    const map<std::string, std::string> fileHashes = parseFileHashes(sourceAndHash[1]);
-    VerifyFS verifyFS(sourceAndHash[0], fileHashes);
+    FileVerifier verifier(sourceAndHash[1]);
+    VerifyFS verifyFS(sourceAndHash[0], verifier);
 
     // activate
     int result = startFuseFSProvider(args.argc, args.argv, &verifyFS);

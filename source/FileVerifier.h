@@ -29,41 +29,28 @@
  *
  */
 
-#ifndef VERIFYFS_H
-#define VERIFYFS_H
+#ifndef FILEVERIFIER_H
+#define FILEVERIFIER_H
 
-#include "IFuseFSProvider.h"
 #include "IFileVerifier.h"
-#include <dirent.h>
-
-#include <string>
 #include <map>
-#include <vector>
 
-class VerifyFS : public IFuseFSProvider
+class FileVerifier : public IFileVerifier
 {
 public:
-    VerifyFS(const std::string& untrustedPath, const IFileVerifier& fileVerifier);
+    FileVerifier(const std::string& digestsPath);
 
-    // IFuseFSProvider interface
-    virtual int fuseStat(const char* path, struct stat* stbuf);
-    virtual int fuseOpendir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseReleasedir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseOpen(const char* path, struct fuse_file_info* fi);
-    virtual int fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseRelease(const char* path, struct fuse_file_info* fi);
+    // IFileVerifier interface
+    virtual bool isValidDirectoryPath(const std::string& path) const;
+    virtual bool isValidFilePath(const std::string& path) const;
+    virtual bool isValidFileBlob(const std::string& path, const uint8_t* data, const size_t length) const;
 
 private:
-    int openAndVerify(const std::string& path);
+    const std::string getFileDigest(const std::string& path) const;
 
 private:
-    const std::string mUntrustedPath;
-    const IFileVerifier& mFileVerifier;
-    std::map<std::string, std::vector<uint8_t>> mTrustedFiles;
-
-    std::map<int, DIR*> fdDir;
+    std::map<const std::string, std::string> mDigests;
 
 };
 
-#endif // VERIFYFS_H
+#endif // FILEVERIFIER_H

@@ -29,41 +29,63 @@
  *
  */
 
-#ifndef VERIFYFS_H
-#define VERIFYFS_H
+#include "FileVerifier.h"
+#include <fstream>
+#include <openssl/sha.h>
+#include <exception>
 
-#include "IFuseFSProvider.h"
-#include "IFileVerifier.h"
-#include <dirent.h>
+using namespace std;
 
-#include <string>
-#include <map>
-#include <vector>
-
-class VerifyFS : public IFuseFSProvider
+FileVerifier::FileVerifier(const string& digestsPath)
 {
-public:
-    VerifyFS(const std::string& untrustedPath, const IFileVerifier& fileVerifier);
+    ifstream input(digestsPath);
+    if(input.is_open())
+    {
+        string line;
+        while(getline(input, line))
+        {
+            const string hash = line.substr(0, 64);
+            const string filename = line.substr(66);
+            mDigests[filename] = hash;
+        }
+    }
+    else
+        throw runtime_error("Unable to open digests file");
+}
 
-    // IFuseFSProvider interface
-    virtual int fuseStat(const char* path, struct stat* stbuf);
-    virtual int fuseOpendir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseReleasedir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseOpen(const char* path, struct fuse_file_info* fi);
-    virtual int fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseRelease(const char* path, struct fuse_file_info* fi);
+bool FileVerifier::isValidDirectoryPath(const std::string& path) const
+{
+    return true;
+}
 
-private:
-    int openAndVerify(const std::string& path);
+bool FileVerifier::isValidFilePath(const std::string& path) const
+{
+    return (! getFileDigest(path).empty());
+}
 
-private:
-    const std::string mUntrustedPath;
-    const IFileVerifier& mFileVerifier;
-    std::map<std::string, std::vector<uint8_t>> mTrustedFiles;
+bool FileVerifier::isValidFileBlob(const string& path, const uint8_t* data, const size_t length) const
+{
+    const string expectedDigest = getFileDigest(path);
+    if(expectedDigest.empty())
+        return false;
 
-    std::map<int, DIR*> fdDir;
+    uint8_t digest[SHA256_DIGEST_LENGTH];
+    SHA256(data, length, digest);
 
-};
+    string digestHex;
+    int i;
+    for(i = 0; i < SHA256_DIGEST_LENGTH; i++)
+    {
+        char byteBuffer[3];
+        sprintf(byteBuffer, "%02x", digest[i]);
+        digestHex += byteBuffer;
+    }
 
-#endif // VERIFYFS_H
+    return (digestHex == expectedDigest);
+}
+
+const string FileVerifier::getFileDigest(const string& path) const
+{
+    auto h = mDigests.find(path);
+    return (mDigests.end() != h) ? h->second : string();
+}

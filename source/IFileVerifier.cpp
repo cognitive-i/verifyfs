@@ -29,41 +29,9 @@
  *
  */
 
-#ifndef VERIFYFS_H
-#define VERIFYFS_H
-
-#include "IFuseFSProvider.h"
 #include "IFileVerifier.h"
-#include <dirent.h>
 
-#include <string>
-#include <map>
-#include <vector>
-
-class VerifyFS : public IFuseFSProvider
+IFileVerifier::~IFileVerifier()
 {
-public:
-    VerifyFS(const std::string& untrustedPath, const IFileVerifier& fileVerifier);
-
-    // IFuseFSProvider interface
-    virtual int fuseStat(const char* path, struct stat* stbuf);
-    virtual int fuseOpendir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseReleasedir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseOpen(const char* path, struct fuse_file_info* fi);
-    virtual int fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseRelease(const char* path, struct fuse_file_info* fi);
-
-private:
-    int openAndVerify(const std::string& path);
-
-private:
-    const std::string mUntrustedPath;
-    const IFileVerifier& mFileVerifier;
-    std::map<std::string, std::vector<uint8_t>> mTrustedFiles;
-
-    std::map<int, DIR*> fdDir;
-
-};
-
-#endif // VERIFYFS_H
+    // minimal concrete definition only
+}
