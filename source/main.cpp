@@ -31,7 +31,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <sstream>
 
 #include "VerifyFS.h"
 #include "FileVerifier.h"
@@ -70,8 +69,11 @@ int main(int argc, char* argv[])
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
     fuse_opt_parse(&args, &sourceAndHash, NULL, verifyFSAdditionalArgs);
 
+    // read hashesfile and create a verifier
+    ifstream digestsStream(sourceAndHash[1]);
+    FileVerifier verifier(digestsStream);
+
     // create fuse filesystem
-    FileVerifier verifier(sourceAndHash[1]);
     VerifyFS verifyFS(sourceAndHash[0], verifier);
 
     // activate

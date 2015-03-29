@@ -34,11 +34,12 @@
 
 #include "IFileVerifier.h"
 #include <map>
+#include <istream>
 
 class FileVerifier : public IFileVerifier
 {
 public:
-    FileVerifier(const std::string& digestsPath);
+    FileVerifier(std::istream& digestsStream);
 
     // IFileVerifier interface
     virtual bool isValidDirectoryPath(const std::string& path) const;

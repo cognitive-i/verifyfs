@@ -30,19 +30,17 @@
  */
 
 #include "FileVerifier.h"
-#include <fstream>
 #include <openssl/sha.h>
 #include <exception>
 
 using namespace std;
 
-FileVerifier::FileVerifier(const string& digestsPath)
+FileVerifier::FileVerifier(istream& digestsStream)
 {
-    ifstream input(digestsPath);
-    if(input.is_open())
+    if(digestsStream.good())
     {
         string line;
-        while(getline(input, line))
+        while(getline(digestsStream, line))
         {
             const string hash = line.substr(0, 64);
             const string filename = line.substr(66);
