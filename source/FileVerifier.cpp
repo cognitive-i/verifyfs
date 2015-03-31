@@ -32,6 +32,8 @@
 #include "FileVerifier.h"
 #include <openssl/sha.h>
 #include <exception>
+#include <libgen.h>
+#include <memory>
 
 using namespace std;
 
@@ -45,6 +47,7 @@ FileVerifier::FileVerifier(istream& digestsStream)
             const string hash = line.substr(0, 64);
             const string filename = line.substr(66);
             mDigests[filename] = hash;
+            saveUniqueDirectories(filename);
         }
     }
     else
@@ -53,19 +56,21 @@ FileVerifier::FileVerifier(istream& digestsStream)
 
 bool FileVerifier::isValidDirectoryPath(const std::string& path) const
 {
-    return true;
+    return (mDirectories.end() != mDirectories.find(path));
 }
 
 bool FileVerifier::isValidFilePath(const std::string& path) const
 {
-    return (! getFileDigest(path).empty());
+    return (mDigests.end() != mDigests.find(path));
 }
 
 bool FileVerifier::isValidFileBlob(const string& path, const uint8_t* data, const size_t length) const
 {
-    const string expectedDigest = getFileDigest(path);
-    if(expectedDigest.empty())
+    auto h = mDigests.find(path);
+    if(mDigests.end() == h)
         return false;
+
+    const string expectedDigest = h->second;
 
     uint8_t digest[SHA256_DIGEST_LENGTH];
     SHA256(data, length, digest);
@@ -82,8 +87,17 @@ bool FileVerifier::isValidFileBlob(const string& path, const uint8_t* data, cons
     return (digestHex == expectedDigest);
 }
 
-const string FileVerifier::getFileDigest(const string& path) const
+void FileVerifier::saveUniqueDirectories(const string& path)
 {
-    auto h = mDigests.find(path);
-    return (mDigests.end() != h) ? h->second : string();
+    char* directory = new char[path.length()+1];
+    strcpy(directory, path.c_str());
+
+    char* pDirectory = directory;
+    while((NULL != (pDirectory = dirname(pDirectory)))
+          && (*pDirectory != '.'))
+    {
+        mDirectories.insert(pDirectory);
+    }
+
+    delete[] directory;
 }

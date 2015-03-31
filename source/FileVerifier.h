@@ -34,6 +34,7 @@
 
 #include "IFileVerifier.h"
 #include <map>
+#include <set>
 #include <istream>
 
 class FileVerifier : public IFileVerifier
@@ -47,11 +48,11 @@ public:
     virtual bool isValidFileBlob(const std::string& path, const uint8_t* data, const size_t length) const;
 
 private:
-    const std::string getFileDigest(const std::string& path) const;
+    void saveUniqueDirectories(const std::string& path);
 
 private:
     std::map<const std::string, std::string> mDigests;
-
+    std::set<const std::string> mDirectories;
 };
 
 #endif // FILEVERIFIER_H

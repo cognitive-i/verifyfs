@@ -60,9 +60,6 @@ TEST(FileVerifierTest, DirectoriesPresentInDigest) {
     EXPECT_TRUE(sut.isValidDirectoryPath("dir1"));
     EXPECT_TRUE(sut.isValidDirectoryPath("dir1/dir2"));
 
-    EXPECT_TRUE(sut.isValidDirectoryPath("dir1/"));
-    EXPECT_TRUE(sut.isValidDirectoryPath("dir1/dir2/"));
-
     EXPECT_FALSE(sut.isValidDirectoryPath("filename1"));
     EXPECT_FALSE(sut.isValidDirectoryPath("dir1/filename2"));
     EXPECT_FALSE(sut.isValidDirectoryPath("dir1/dir2/filename2"));
