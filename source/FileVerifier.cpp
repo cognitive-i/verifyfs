@@ -89,15 +89,13 @@ bool FileVerifier::isValidFileBlob(const string& path, const uint8_t* data, cons
 
 void FileVerifier::saveUniqueDirectories(const string& path)
 {
-    char* directory = new char[path.length()+1];
-    strcpy(directory, path.c_str());
+    unique_ptr<char[]> directory = unique_ptr<char[]>(new char[path.length()+1]);
+    strcpy(&directory[0], path.c_str());
 
-    char* pDirectory = directory;
+    char* pDirectory = &directory[0];
     while((NULL != (pDirectory = dirname(pDirectory)))
           && (*pDirectory != '.'))
     {
         mDirectories.insert(pDirectory);
     }
-
-    delete[] directory;
 }
