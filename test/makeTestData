@@ -1,0 +1,35 @@
+#!/bin/bash
+
+function makeBlob
+{
+    FILENAME=$1
+    SIZE=$2
+    HEADERFILE=$3
+
+    dd if=/dev/urandom of=${FILENAME} count=${SIZE} bs=1
+    xxd -i "${FILENAME}" >> "${HEADERFILE}"
+}
+
+
+
+CURDIR=$PWD
+WORKING=`mktemp -d WORKING.XXXX`
+HEADERFILE=testAssets.h
+
+cd "${WORKING}"
+
+
+BLOBS="blob1 blob2"
+
+for F in ${BLOBS}; do
+    makeBlob ${F} 128 ${HEADERFILE}
+done
+
+shasum -a256 ${BLOBS} > digests
+
+xxd -i digests >> "${HEADERFILE}"
+
+mv "${HEADERFILE}" "${CURDIR}"
+cd "${CURDIR}"
+rm -rf "${WORKING}"
+

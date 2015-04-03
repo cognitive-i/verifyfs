@@ -30,8 +30,10 @@ enable_testing()
 
 set(TEST_SRC_LIST ${SRC_LIST})
 list(REMOVE_ITEM TEST_SRC_LIST source/main.cpp)
+list(APPEND TEST_SRC_LIST test/testFileVerifier.cpp)
+
 include_directories(${gmock_SOURCE_DIR}/include ${gmock_SOURCE_DIR}/gtest/include source)
-add_executable(testVerifier test/testFileVerifier.cpp ${TEST_SRC_LIST})
+add_executable(testVerifier ${TEST_SRC_LIST})
 
 target_link_libraries(testVerifier gtest gtest_main ${FUSE_LIBRARIES} ${OPENSSL_LIBRARIES})
 set_property(TARGET testVerifier PROPERTY CXX_STANDARD 11)
