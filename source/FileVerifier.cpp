@@ -49,8 +49,6 @@ FileVerifier::FileVerifier(istream& digestsStream)
             mDigests[filename] = hash;
             saveUniqueDirectories(filename);
         }
-
-        mDirectories.insert(".");
     }
     else
         throw runtime_error("Unable to open digests file");

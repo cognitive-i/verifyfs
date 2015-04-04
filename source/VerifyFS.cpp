@@ -77,7 +77,7 @@ int VerifyFS::fuseOpendir(const char* path, struct fuse_file_info* fi)
 
     int fh;
     DIR* dh;
-    if(! mFileVerifier.isValidDirectoryPath(correctedPath))
+    if(! (mFileVerifier.isValidDirectoryPath(correctedPath) || (0 == strcmp(correctedPath, "."))))
         return -ENOENT;
     else if(-1 == (fh = mFS.openat(mSourceFolderFd, correctedPath, O_RDONLY)))
         return -ENOENT;
@@ -96,6 +96,8 @@ int VerifyFS::fuseOpendir(const char* path, struct fuse_file_info* fi)
 
 int VerifyFS::fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
 {
+    // all fuse paths are absolute within the fs, i.e. always start with /
+    // but don't always end with / (i.e. root), so need to correct accordingly
     string parentDir = string(path+1) + '/';
     if(1 == parentDir.length())
         parentDir.clear();
@@ -113,7 +115,7 @@ int VerifyFS::fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, o
             const string fullPath = parentDir + dentry.d_name;
 
             if( ((DT_DIR == dentry.d_type) && mFileVerifier.isValidDirectoryPath(fullPath))
-                    || ((DT_REG == dentry.d_type) && mFileVerifier.isValidFilePath(fullPath)))
+                    || ((DT_REG == dentry.d_type) && mFileVerifier.isValidFilePath(fullPath)) )
                 filler(buf, dentry.d_name, NULL, 0);
             else
                 cerr << "File/Directory not in manifest" << fullPath << endl;
