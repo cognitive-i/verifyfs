@@ -31,7 +31,6 @@
 
 #include "VerifyFS.h"
 
-#include <sys/stat.h>
 #include <errno.h>
 #include <unistd.h>
 #include <iostream>
@@ -75,29 +74,50 @@ int VerifyFS::fuseStat(const char* path, struct stat* stbuf)
 int VerifyFS::fuseOpendir(const char* path, struct fuse_file_info* fi)
 {
     const char* correctedPath = correctPath(path);
-    DIR* dh = fdopendir(mFS.openat(mSourceFolderFd, correctedPath, O_RDONLY));
-    if(dh)
+
+    int fh;
+    DIR* dh;
+    if(! mFileVerifier.isValidDirectoryPath(correctedPath))
+        return -ENOENT;
+    else if(-1 == (fh = mFS.openat(mSourceFolderFd, correctedPath, O_RDONLY)))
+        return -ENOENT;
+    else if(NULL == (dh = mFS.fdopendir(fh)))
     {
-        fi->fh = dirfd(dh);
+        mFS.close(fh);
+        return -ENOENT;
+    }
+    else
+    {
+        fi->fh = fh;
         fdDir[fi->fh] = dh;
         return 0;
     }
-    else
-        return -ENOENT;
 }
 
 int VerifyFS::fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi)
 {
+    string parentDir = string(path+1) + '/';
+    if(1 == parentDir.length())
+        parentDir.clear();
+
     auto i = fdDir.find(fi->fh);
     if(fdDir.end() != i)
     {
         DIR* fdir = i->second;
-        rewinddir(fdir);
+        mFS.rewinddir(fdir);
 
         dirent dentry;
         dirent* pDentry = &dentry;
-        while((0 == readdir_r(fdir, pDentry, &pDentry)) && pDentry)
-            filler(buf, dentry.d_name, NULL, 0);
+        while((0 == mFS.readdir_r(fdir, pDentry, &pDentry)) && pDentry)
+        {
+            const string fullPath = parentDir + dentry.d_name;
+
+            if( ((DT_DIR == dentry.d_type) && mFileVerifier.isValidDirectoryPath(fullPath))
+                    || ((DT_REG == dentry.d_type) && mFileVerifier.isValidFilePath(fullPath)))
+                filler(buf, dentry.d_name, NULL, 0);
+            else
+                cerr << "File/Directory not in manifest" << fullPath << endl;
+        }
 
         return 0;
     }
@@ -110,7 +130,7 @@ int VerifyFS::fuseReleasedir (const char* path, struct fuse_file_info* fi)
     auto i = fdDir.find(fi->fh);
     if(fdDir.end() != i)
     {
-        closedir(i->second);
+        mFS.closedir(i->second);
         fdDir.erase(i);
     }
 
