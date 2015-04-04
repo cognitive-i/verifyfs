@@ -52,12 +52,11 @@ inline const char* correctPath(const char* fusePath)
 } // namespace
 
 VerifyFS::VerifyFS(const string& untrustedPath, const IFileVerifier& fileVerifier, IPosixFileSystem& filesystem) :
-    mUntrustedPath(untrustedPath),
     mFileVerifier(fileVerifier),
     mFS(filesystem)
 {
     // maintain a FD link with source folder to use openat later on
-    mSourceFolderFd = mFS.open(mUntrustedPath.c_str(), O_RDONLY);
+    mSourceFolderFd = mFS.open(untrustedPath.c_str(), O_RDONLY);
     if(-1 == mSourceFolderFd)
         throw runtime_error("Unable to open source folder");
 }
@@ -137,8 +136,8 @@ int VerifyFS::fuseOpen(const char* path, struct fuse_file_info* fi)
 int VerifyFS::fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi)
 {
     int result = -EACCES;
-    string fullpath = mUntrustedPath + path;
-    auto f = mTrustedFiles.find(fullpath);
+    const char* correctedPath = correctPath(path);
+    auto f = mTrustedFiles.find(correctedPath);
     if(mTrustedFiles.end() != f)
     {
         vector<uint8_t>& fileData = f->second;
@@ -155,15 +154,13 @@ int VerifyFS::fuseRead(const char* path, char* buf, size_t size, off_t offset, s
 
 int VerifyFS::fuseRelease(const char* path, struct fuse_file_info* fi)
 {
-    string fullpath = mUntrustedPath + path;
-    mTrustedFiles.erase(fullpath);
+    const char* correctedPath = correctPath(path);
+    mTrustedFiles.erase(correctedPath);
     return 0;
 }
 
 int VerifyFS::openAndVerify(const string& path)
 {
-    string fullpath = mUntrustedPath + '/' + path;
-
     int result = -ENOENT;
     int fh = mFS.openat(mSourceFolderFd, path.c_str(), O_RDONLY);
     if(-1 != fh)
@@ -182,11 +179,11 @@ int VerifyFS::openAndVerify(const string& path)
             bool isGood = mFileVerifier.isValidFileBlob(path, buffer.data(), buffer.size());
             if(isGood)
             {
-                mTrustedFiles[fullpath] = buffer;
+                mTrustedFiles[path] = buffer;
                 result = 0;
             }
             else
-                cerr << "Failed validation:  " << fullpath << endl;
+                cerr << "Failed validation:  " << path << endl;
 
         }
     }

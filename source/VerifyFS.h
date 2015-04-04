@@ -60,7 +60,6 @@ private:
     int openAndVerify(const std::string& path);
 
 private:
-    const std::string mUntrustedPath;
     const IFileVerifier& mFileVerifier;
     IPosixFileSystem& mFS;
     std::map<std::string, std::vector<uint8_t>> mTrustedFiles;
