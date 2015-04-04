@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/stat.h>
+#include <dirent.h>
 
 class IPosixFileSystem
 {
@@ -48,6 +49,11 @@ public:
 
     virtual int fstat(int fildes, struct stat *buf) = 0;
     virtual int fstatat(int fd, const char *path, struct stat *buf, int flag) = 0;
+
+    virtual DIR* fdopendir(int fd) = 0;
+    virtual int readdir_r(DIR* dirp, struct dirent* entry, struct dirent** result) = 0;
+    virtual void rewinddir(DIR *dirp) = 0;
+    virtual int closedir(DIR *dirp) = 0;
 
     virtual ~IPosixFileSystem();
 };

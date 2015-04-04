@@ -45,6 +45,11 @@ public:
 
     virtual int fstat(int fildes, struct stat* buf);
     virtual int fstatat(int fd, const char *path, struct stat* buf, int flag);
+
+    virtual DIR* fdopendir(int fd);
+    virtual int readdir_r(DIR* dirp, dirent* entry, dirent** result);
+    virtual void rewinddir(DIR *dirp);
+    virtual int closedir(DIR* dirp);
 };
 
 #endif // POSIXFILESYSTEM_H

@@ -66,3 +66,23 @@ int PosixFileSystem::fstatat(int fd, const char* path, struct stat* buf, int fla
 {
     return ::fstatat(fd, path, buf, flag);
 }
+
+DIR* PosixFileSystem::fdopendir(int fd)
+{
+    return ::fdopendir(fd);
+}
+
+int PosixFileSystem::readdir_r(DIR* dirp, dirent* entry, dirent** result)
+{
+    return ::readdir_r(dirp, entry, result);
+}
+
+void PosixFileSystem::rewinddir(DIR* dirp)
+{
+    ::rewinddir(dirp);
+}
+
+int PosixFileSystem::closedir(DIR* dirp)
+{
+    return ::closedir(dirp);
+}
