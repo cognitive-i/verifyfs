@@ -35,6 +35,7 @@
 #include "VerifyFS.h"
 #include "FileVerifier.h"
 #include "FuseFSGlue.h"
+#include "PosixFileSystem.h"
 
 using namespace std;
 
@@ -74,7 +75,8 @@ int main(int argc, char* argv[])
     FileVerifier verifier(digestsStream);
 
     // create fuse filesystem
-    VerifyFS verifyFS(sourceAndHash[0], verifier);
+    PosixFileSystem posixFS;
+    VerifyFS verifyFS(sourceAndHash[0], verifier, posixFS);
 
     // activate
     int result = startFuseFSProvider(args.argc, args.argv, &verifyFS);

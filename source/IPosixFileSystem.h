@@ -29,46 +29,27 @@
  *
  */
 
-#ifndef VERIFYFS_H
-#define VERIFYFS_H
+#ifndef IPOSIXFILESYSTEM_H
+#define IPOSIXFILESYSTEM_H
 
-#include "IFuseFSProvider.h"
-#include "IFileVerifier.h"
-#include "IPosixFileSystem.h"
-#include <dirent.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/uio.h>
+#include <sys/stat.h>
 
-#include <string>
-#include <map>
-#include <vector>
-
-class VerifyFS : public IFuseFSProvider
+class IPosixFileSystem
 {
 public:
-    VerifyFS(const std::string& untrustedPath, const IFileVerifier& fileVerifier, IPosixFileSystem& filesystem);
-    virtual ~VerifyFS();
+    virtual int open(const char* filename, int, mode_t mode = S_IRUSR|S_IWUSR) = 0;
+    virtual int openat(int fd, const char *path, int oflag, mode_t mode = S_IRUSR|S_IWUSR) = 0;
+    virtual int close(int fd) = 0;
 
-    // IFuseFSProvider interface
-    virtual int fuseStat(const char* path, struct stat* stbuf);
-    virtual int fuseOpendir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseReleasedir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseOpen(const char* path, struct fuse_file_info* fi);
-    virtual int fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseRelease(const char* path, struct fuse_file_info* fi);
+    virtual ssize_t read(int fildes, void* buf, size_t nbyte) = 0;
 
-private:
-    int openAndVerify(const std::string& path);
+    virtual int fstat(int fildes, struct stat *buf) = 0;
+    virtual int fstatat(int fd, const char *path, struct stat *buf, int flag) = 0;
 
-private:
-    const std::string mUntrustedPath;
-    const IFileVerifier& mFileVerifier;
-    IPosixFileSystem& mFS;
-    std::map<std::string, std::vector<uint8_t>> mTrustedFiles;
-
-    std::map<int, DIR*> fdDir;
-
-    int mSourceFolderFd;
-
+    virtual ~IPosixFileSystem();
 };
 
-#endif // VERIFYFS_H
+#endif // IPOSIXFILESYSTEM_H

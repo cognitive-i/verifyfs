@@ -41,24 +41,42 @@
 
 using namespace std;
 
-VerifyFS::VerifyFS(const string& untrustedPath, const IFileVerifier& fileVerifier) :
-    mUntrustedPath(untrustedPath),
-    mFileVerifier(fileVerifier)
+namespace {
+const char* currentDir = ".";
+
+inline const char* correctPath(const char* fusePath)
 {
-    // initialiser list only
+    return (0 == strcmp(fusePath, "/"))? currentDir : fusePath + 1;
+}
+
+} // namespace
+
+VerifyFS::VerifyFS(const string& untrustedPath, const IFileVerifier& fileVerifier, IPosixFileSystem& filesystem) :
+    mUntrustedPath(untrustedPath),
+    mFileVerifier(fileVerifier),
+    mFS(filesystem)
+{
+    // maintain a FD link with source folder to use openat later on
+    mSourceFolderFd = mFS.open(mUntrustedPath.c_str(), O_RDONLY);
+    if(-1 == mSourceFolderFd)
+        throw runtime_error("Unable to open source folder");
+}
+
+VerifyFS::~VerifyFS()
+{
+    mFS.close(mSourceFolderFd);
 }
 
 int VerifyFS::fuseStat(const char* path, struct stat* stbuf)
 {
-    // really want a statat
-    string fullpath = mUntrustedPath + path;
-    return stat(fullpath.c_str(), stbuf);
+    const char* correctedPath = correctPath(path);
+    return mFS.fstatat(mSourceFolderFd, correctedPath, stbuf, 0);
 }
 
 int VerifyFS::fuseOpendir(const char* path, struct fuse_file_info* fi)
 {
-    string fullpath = mUntrustedPath + path;
-    DIR* dh = opendir(fullpath.c_str());
+    const char* correctedPath = correctPath(path);
+    DIR* dh = fdopendir(mFS.openat(mSourceFolderFd, correctedPath, O_RDONLY));
     if(dh)
     {
         fi->fh = dirfd(dh);
@@ -103,17 +121,17 @@ int VerifyFS::fuseReleasedir (const char* path, struct fuse_file_info* fi)
 
 int VerifyFS::fuseOpen(const char* path, struct fuse_file_info* fi)
 {
-    const string relativePath = path + 1; // +1 is to remove / prepend
+    const char* correctedPath = correctPath(path);
     const int accessMode = fi->flags & O_ACCMODE;
 
     // only permit readonly
     if(O_RDONLY != accessMode)
         return -EACCES;
 
-    if(! mFileVerifier.isValidFilePath(relativePath))
+    if(! mFileVerifier.isValidFilePath(correctedPath))
         return -EACCES;
 
-    return openAndVerify(relativePath);
+    return openAndVerify(correctedPath);
 }
 
 int VerifyFS::fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi)
@@ -147,17 +165,17 @@ int VerifyFS::openAndVerify(const string& path)
     string fullpath = mUntrustedPath + '/' + path;
 
     int result = -ENOENT;
-    int fh = open(fullpath.c_str(), O_RDONLY);
+    int fh = mFS.openat(mSourceFolderFd, path.c_str(), O_RDONLY);
     if(-1 != fh)
     {
         struct stat details;
-        fstat(fh, &details);
+        mFS.fstat(fh, &details);
 
         vector<uint8_t> buffer;
         buffer.resize(details.st_size);
 
-        const off_t bytesRead = read(fh, buffer.data(), details.st_size);
-        close(fh);
+        const off_t bytesRead = mFS.read(fh, buffer.data(), details.st_size);
+        mFS.close(fh);
 
         if(bytesRead == details.st_size)
         {

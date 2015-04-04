@@ -29,46 +29,40 @@
  *
  */
 
-#ifndef VERIFYFS_H
-#define VERIFYFS_H
+#include "PosixFileSystem.h"
+#include <unistd.h>
 
-#include "IFuseFSProvider.h"
-#include "IFileVerifier.h"
-#include "IPosixFileSystem.h"
-#include <dirent.h>
+#include <iostream>
 
-#include <string>
-#include <map>
-#include <vector>
+#include <fcntl.h>
+using namespace std;
 
-class VerifyFS : public IFuseFSProvider
+int PosixFileSystem::open(const char* filename, int oflag, mode_t mode)
 {
-public:
-    VerifyFS(const std::string& untrustedPath, const IFileVerifier& fileVerifier, IPosixFileSystem& filesystem);
-    virtual ~VerifyFS();
+    return ::open(filename, oflag, mode);
+}
 
-    // IFuseFSProvider interface
-    virtual int fuseStat(const char* path, struct stat* stbuf);
-    virtual int fuseOpendir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseReleasedir(const char* path, struct fuse_file_info* fi);
-    virtual int fuseOpen(const char* path, struct fuse_file_info* fi);
-    virtual int fuseRead(const char* path, char* buf, size_t size, off_t offset, struct fuse_file_info* fi);
-    virtual int fuseRelease(const char* path, struct fuse_file_info* fi);
+int PosixFileSystem::openat(int fd, const char* path, int oflag, mode_t mode)
+{
+    return ::openat(fd, path, oflag, mode);
+}
 
-private:
-    int openAndVerify(const std::string& path);
+int PosixFileSystem::close(int fd)
+{
+    return ::close(fd);
+}
 
-private:
-    const std::string mUntrustedPath;
-    const IFileVerifier& mFileVerifier;
-    IPosixFileSystem& mFS;
-    std::map<std::string, std::vector<uint8_t>> mTrustedFiles;
+ssize_t PosixFileSystem::read(int fildes, void* buf, size_t nbyte)
+{
+    return ::read(fildes, buf, nbyte);
+}
 
-    std::map<int, DIR*> fdDir;
+int PosixFileSystem::fstat(int fildes, struct stat* buf)
+{
+    return ::fstat(fildes, buf);
+}
 
-    int mSourceFolderFd;
-
-};
-
-#endif // VERIFYFS_H
+int PosixFileSystem::fstatat(int fd, const char* path, struct stat* buf, int flag)
+{
+    return ::fstatat(fd, path, buf, flag);
+}
