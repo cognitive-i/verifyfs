@@ -29,33 +29,56 @@
  *
  */
 
-#ifndef IPOSIXFILESYSTEM_H
-#define IPOSIXFILESYSTEM_H
+#include "gtest/gtest.h"
+#include "gmock/gmock.h"
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/uio.h>
-#include <sys/stat.h>
-#include <dirent.h>
+#include "FileVerifier.h"
+#include "IPosixFileSystem.h"
+#include "VerifyFS.h"
 
-class IPosixFileSystem
+using namespace std;
+using namespace testing;
+
+class MockFileVerifier : public IFileVerifier
 {
 public:
-    virtual int open(const char* filename, int oflag, mode_t mode = S_IRUSR|S_IWUSR) = 0;
-    virtual int openat(int fd, const char *path, int oflag, mode_t mode = S_IRUSR|S_IWUSR) = 0;
-    virtual int close(int fd) = 0;
-
-    virtual ssize_t read(int fildes, void* buf, size_t nbyte) = 0;
-
-    virtual int fstat(int fildes, struct stat *buf) = 0;
-    virtual int fstatat(int fd, const char *path, struct stat *buf, int flag) = 0;
-
-    virtual DIR* fdopendir(int fd) = 0;
-    virtual int readdir_r(DIR* dirp, struct dirent* entry, struct dirent** result) = 0;
-    virtual void rewinddir(DIR *dirp) = 0;
-    virtual int closedir(DIR *dirp) = 0;
-
-    virtual ~IPosixFileSystem();
+    MOCK_CONST_METHOD1(isValidDirectoryPath, bool(const std::string& path));
+    MOCK_CONST_METHOD1(isValidFilePath, bool(const std::string& path));
+    MOCK_CONST_METHOD3(isValidFileBlob, bool(const std::string& path, const uint8_t* data, const size_t length));
 };
 
-#endif // IPOSIXFILESYSTEM_H
+class MockPosixFileSystem : public IPosixFileSystem
+{
+public:
+    MOCK_METHOD3(open, int(const char* filename, int oflag, mode_t mode));
+    MOCK_METHOD4(openat, int(int fd, const char *path, int oflag, mode_t mode));
+    MOCK_METHOD1(close, int(int fd));
+    MOCK_METHOD3(read, ssize_t(int fildes, void* buf, size_t nbyte));
+
+    MOCK_METHOD2(fstat, int(int fildes, struct stat *buf));
+    MOCK_METHOD4(fstatat, int(int fd, const char *path, struct stat *buf, int flag));
+
+    MOCK_METHOD1(fdopendir, DIR*(int fd));
+    MOCK_METHOD3(readdir_r, int(DIR* dirp, struct dirent* entry, struct dirent** result));
+    MOCK_METHOD1(rewinddir, void(DIR *dirp));
+    MOCK_METHOD1(closedir, int(DIR *dirp));
+};
+
+TEST(TestVerifyFs, OpensSourceDirectory) {
+
+    const string SOURCE("SOME_DIRECTORY");
+    MockFileVerifier mockFV;
+    StrictMock<MockPosixFileSystem> mockFS;
+
+    const int FAKE_FD = 666;
+    Sequence s;
+    EXPECT_CALL(mockFS, open(SOURCE.c_str(), O_RDONLY, _))
+            .InSequence(s)
+            .WillOnce(Return(FAKE_FD));
+
+    EXPECT_CALL(mockFS, close(FAKE_FD))
+            .InSequence(s);
+
+    VerifyFS sut(SOURCE, mockFV, mockFS);
+}
+
