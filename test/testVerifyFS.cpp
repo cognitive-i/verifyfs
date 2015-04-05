@@ -82,3 +82,72 @@ TEST(TestVerifyFs, OpensSourceDirectory) {
     VerifyFS sut(SOURCE, mockFV, mockFS);
 }
 
+
+TEST(TestVerifyFs, CheckFileIsntInManifest){
+
+    const string SOURCE("SOME_DIRECTORY");
+    StrictMock<MockFileVerifier> mockFV;
+    NiceMock<MockPosixFileSystem> mockFS;
+
+    const int FAKE_FD = 666;
+    Sequence s;
+    EXPECT_CALL(mockFS, open(SOURCE.c_str(), O_RDONLY, _))
+            .InSequence(s)
+            .WillOnce(Return(FAKE_FD));
+
+    EXPECT_CALL(mockFS, close(FAKE_FD));
+
+    const string BADFILE1("/badfile");
+    const string BADFILE2("/some/path/badfile");
+
+    VerifyFS sut(SOURCE, mockFV, mockFS);
+
+    // note FileVerifer APIs expect relative paths, so omit leading /
+    EXPECT_CALL(mockFV, isValidFilePath(BADFILE1.substr(1)))
+            .WillOnce(Return(false));
+
+    EXPECT_CALL(mockFV, isValidFilePath(BADFILE2.substr(1)))
+            .WillOnce(Return(false));
+
+    struct fuse_file_info fi;
+    fi.flags = O_RDONLY;
+    EXPECT_TRUE(-EACCES == sut.fuseOpen(BADFILE1.c_str(), &fi));
+    EXPECT_TRUE(-EACCES == sut.fuseOpen(BADFILE2.c_str(), &fi));
+
+}
+
+
+TEST(TestVerifyFs, ReadOnlyFileAccess){
+
+    const string SOURCE("SOME_DIRECTORY");
+    NiceMock<MockFileVerifier> mockFV;
+    NiceMock<MockPosixFileSystem> mockFS;
+
+    const int FAKE_FD = 666;
+    Sequence s;
+    EXPECT_CALL(mockFS, open(SOURCE.c_str(), O_RDONLY, _))
+            .InSequence(s)
+            .WillOnce(Return(FAKE_FD));
+
+    EXPECT_CALL(mockFS, close(FAKE_FD));
+
+    const string GOODFILE1("/goodfile");
+    const string GOODFILE2("/some/path/goodfile");
+
+    VerifyFS sut(SOURCE, mockFV, mockFS);
+
+    ON_CALL(mockFV, isValidFilePath(_))
+            .WillByDefault(Return(true));
+
+    struct fuse_file_info fi;
+    fi.flags = O_WRONLY;
+    EXPECT_TRUE(-EACCES == sut.fuseOpen(GOODFILE1.c_str(), &fi));
+    EXPECT_TRUE(-EACCES == sut.fuseOpen(GOODFILE2.c_str(), &fi));
+
+    fi.flags = O_RDWR;
+    EXPECT_TRUE(-EACCES == sut.fuseOpen(GOODFILE1.c_str(), &fi));
+    EXPECT_TRUE(-EACCES == sut.fuseOpen(GOODFILE2.c_str(), &fi));
+}
+
+
+
