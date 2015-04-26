@@ -67,6 +67,8 @@ TEST(FileVerifierTest, DirectoriesPresentInDigest) {
     EXPECT_FALSE(sut.isValidDirectoryPath("filename1"));
     EXPECT_FALSE(sut.isValidDirectoryPath("dir1/filename2"));
     EXPECT_FALSE(sut.isValidDirectoryPath("dir1/dir2/filename2"));
+
+    EXPECT_FALSE(sut.isValidDirectoryPath("."));
 }
 
 const vector<uint8_t> fileBlobDigests(digests, digests + digests_len);
