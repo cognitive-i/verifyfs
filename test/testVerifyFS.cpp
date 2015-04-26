@@ -36,8 +36,11 @@
 #include "IPosixFileSystem.h"
 #include "VerifyFS.h"
 
+#include <functional>
+
 using namespace std;
 using namespace testing;
+using namespace std::placeholders;
 
 class MockFileVerifier : public IFileVerifier
 {
@@ -148,6 +151,88 @@ TEST(TestVerifyFs, ReadOnlyFileAccess){
     EXPECT_TRUE(-EACCES == sut.fuseOpen(GOODFILE1.c_str(), &fi));
     EXPECT_TRUE(-EACCES == sut.fuseOpen(GOODFILE2.c_str(), &fi));
 }
+
+
+
+
+namespace {
+
+int fakeStatInjector(struct stat* in, struct stat* out)
+{
+    memcpy(out, in, sizeof(struct stat));
+    return 0;
+}
+
+int fakeReadInjector(void* in, void* out, const size_t count)
+{
+    memcpy(out, in, count);
+    return count;
+}
+
+MATCHER_P(binaryMatcher, d, "") { return (0 == memcmp(arg, d.data(), d.length())); }
+
+} // helper namespace
+
+TEST(TestVerifyFs, OpenActualFile){
+
+    const string SOURCE("SOME_DIRECTORY");
+    StrictMock<MockFileVerifier> mockFV;
+    StrictMock<MockPosixFileSystem> mockFS;
+
+
+    const int FD_DIRECTORY = 1000;
+    const int FD_UNTRUSTED_FILE = 1001;
+
+    const string GOODFILE_ABS("/goodfile");
+    const string GOODFILE_RELATIVE = GOODFILE_ABS.substr(1);
+    const string GOODFILE_DATA = "hello world whoop whoop";
+    struct stat GOODFILE_STAT;
+    bzero(&GOODFILE_STAT, sizeof(struct stat));
+    GOODFILE_STAT.st_size = GOODFILE_DATA.length();
+
+
+    Sequence s;
+    EXPECT_CALL(mockFS, open(StrEq(SOURCE.c_str()), O_RDONLY, _))
+            .InSequence(s)
+            .WillOnce(Return(FD_DIRECTORY));
+
+    EXPECT_CALL(mockFV, isValidFilePath(GOODFILE_RELATIVE))
+            .InSequence(s)
+            .WillOnce(Return(true));
+
+    EXPECT_CALL(mockFS, openat(FD_DIRECTORY, StrEq(GOODFILE_RELATIVE.c_str()), O_RDONLY, _))
+            .InSequence(s)
+            .WillOnce(Return(FD_UNTRUSTED_FILE));
+
+    auto fstatter = bind(fakeStatInjector, &GOODFILE_STAT, _1);
+    EXPECT_CALL(mockFS, fstat(FD_UNTRUSTED_FILE, _))
+            .InSequence(s)
+            .WillOnce(WithArgs<1>(Invoke(fstatter)));
+
+    auto reader = bind(fakeReadInjector, (void*) GOODFILE_DATA.data(), _1, _2);
+    EXPECT_CALL(mockFS, read(FD_UNTRUSTED_FILE, _, GOODFILE_STAT.st_size))
+            .InSequence(s)
+            .WillOnce(WithArgs<1,2>(Invoke(reader)));
+
+    EXPECT_CALL(mockFS, close(FD_UNTRUSTED_FILE))
+            .InSequence(s)
+            .WillOnce(Return(0));
+
+    EXPECT_CALL(mockFV, isValidFileBlob(GOODFILE_RELATIVE, binaryMatcher(GOODFILE_DATA), GOODFILE_DATA.length()))
+            .InSequence(s)
+            .WillOnce(Return(true));
+
+    EXPECT_CALL(mockFS, close(FD_DIRECTORY))
+            .InSequence(s)
+            .WillOnce(Return(0));
+
+    VerifyFS sut(SOURCE, mockFV, mockFS);
+
+    struct fuse_file_info fi;
+    fi.flags = O_RDONLY;
+    EXPECT_EQ(0, sut.fuseOpen(GOODFILE_ABS.c_str(), &fi));
+}
+
 
 
 
