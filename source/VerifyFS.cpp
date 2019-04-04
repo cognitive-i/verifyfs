@@ -77,10 +77,9 @@ int VerifyFS::fuseReaddir(const char* path, void* buf, fuse_fill_dir_t filler, o
         DIR* fdir = i->second;
         rewinddir(fdir);
 
-        dirent dentry;
-        dirent* pDentry = &dentry;
-        while((0 == readdir_r(fdir, pDentry, &pDentry)) && pDentry)
-            filler(buf, dentry.d_name, NULL, 0);
+        dirent* pDentry;
+        while(nullptr != (pDentry = readdir(fdir)))
+            filler(buf, pDentry->d_name, NULL, 0);
 
         return 0;
     }

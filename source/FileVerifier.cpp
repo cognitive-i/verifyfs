@@ -34,6 +34,7 @@
 #include <exception>
 #include <libgen.h>
 #include <memory>
+#include <string.h>
 
 using namespace std;
 

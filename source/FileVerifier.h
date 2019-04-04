@@ -52,7 +52,7 @@ private:
 
 private:
     std::map<const std::string, std::string> mDigests;
-    std::set<const std::string> mDirectories;
+    std::set<std::string> mDirectories;
 };
 
 #endif // FILEVERIFIER_H

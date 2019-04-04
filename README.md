@@ -17,6 +17,11 @@ port install osxfuse openssl
 **Debian/Ubuntu/Xubuntu**
 apt-get install libfuse-dev libssl-dev
 
+**Centos 7**
+yum install openssl-devel fuse-devel
+
+**Fedora 28**
+dnf install openssl-devel fuse-devel
 
 Usage
 =====
