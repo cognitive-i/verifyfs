@@ -53,4 +53,4 @@ Ideas
 
 Author
 ======
-Atish Nazir, Cognitive-i Ltd verifyfs@cognitive-i.com
+Atish Nazir, Cognitive-i Ltd oss+verifyfs@cognitive-i.com
